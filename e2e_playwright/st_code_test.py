@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+import textwrap
+
 from playwright.sync_api import Page, expect
 
 from e2e_playwright.conftest import ImageCompareFunction
@@ -20,8 +23,35 @@ from e2e_playwright.shared.app_utils import check_top_level_class
 
 def test_code_display(app: Page):
     """Test that st.code displays a code block."""
-    code_element = app.get_by_test_id("stCode").first
-    expect(code_element).to_contain_text("This code is awesome!")
+    code = textwrap.dedent(
+        """
+        def hello():
+            print("Hello, Streamlit!")
+        """
+    ).strip()
+    code_with_whitespace = textwrap.indent(code, "    ")
+    code_pattern = re.escape(code)
+    code_with_whitespace_pattern = re.escape(code_with_whitespace)
+
+    code_blocks = app.get_by_test_id("stCode")
+    expect(code_blocks.nth(0)).to_contain_text(
+        re.compile(r"\A# This code is awesome!\Z")
+    )
+    expect(code_blocks.nth(1)).to_contain_text(re.compile(r"\A\Z"))
+    expect(code_blocks.nth(2)).to_contain_text(re.compile(rf"\A{code_pattern}\Z"))
+    expect(code_blocks.nth(5)).to_contain_text(re.compile(rf"\A{code_pattern}\Z"))
+    expect(code_blocks.nth(7)).to_contain_text(
+        re.compile(rf"\A{code_with_whitespace_pattern}\Z")
+    )
+    expect(code_blocks.nth(8)).to_contain_text(
+        re.compile(rf"\A{code_with_whitespace_pattern}\Z")
+    )
+    expect(code_blocks.nth(9)).to_contain_text(
+        re.compile(rf"\A\n{code_with_whitespace_pattern}\Z")
+    )
+    expect(code_blocks.nth(10)).to_contain_text(
+        re.compile(rf"\A\n{code_with_whitespace_pattern}\n\Z")
+    )
 
 
 def test_syntax_highlighting(themed_app: Page, assert_snapshot: ImageCompareFunction):
@@ -36,7 +66,7 @@ def test_code_blocks_render_correctly(
 ):
     """Test that the code blocks render as expected via screenshot matching."""
     code_blocks = themed_app.get_by_test_id("stCode")
-    expect(code_blocks).to_have_count(15)
+    expect(code_blocks).to_have_count(19)
     # The code blocks might require a bit more time for rendering, so wait until
     # the text is truly visible. Otherwise we might get blank code blocks in the
     # screenshots.
@@ -54,10 +84,10 @@ def test_code_blocks_render_correctly(
     assert_snapshot(code_blocks.nth(6), name="st_code-diff_lang")
 
     # Test long lines draw as expected.
-    assert_snapshot(code_blocks.nth(11), name="st_code-long-no_wrap")
-    assert_snapshot(code_blocks.nth(12), name="st_code-long-numbers-no_wrap")
-    assert_snapshot(code_blocks.nth(13), name="st_code-long-wrap")
-    assert_snapshot(code_blocks.nth(14), name="st_code-long-numbers-wrap")
+    assert_snapshot(code_blocks.nth(15), name="st_code-long-no_wrap")
+    assert_snapshot(code_blocks.nth(16), name="st_code-long-numbers-no_wrap")
+    assert_snapshot(code_blocks.nth(17), name="st_code-long-wrap")
+    assert_snapshot(code_blocks.nth(18), name="st_code-long-numbers-wrap")
 
 
 def test_correct_bottom_spacing_for_code_blocks(app: Page):
@@ -85,20 +115,20 @@ def test_line_wrap(app: Page):
 
     # When line-wrap is off, the "EOL" token should not be visible.
 
-    curr_block = code_blocks.nth(11)
+    curr_block = code_blocks.nth(15)
     curr_block.scroll_into_view_if_needed()
     expect(curr_block.get_by_text("EOL")).not_to_be_in_viewport()
 
-    curr_block = code_blocks.nth(12)
+    curr_block = code_blocks.nth(16)
     curr_block.scroll_into_view_if_needed()
     expect(curr_block.get_by_text("EOL")).not_to_be_in_viewport()
 
     # When line-wrap is on, the "EOL" token should be visible.
 
-    curr_block = code_blocks.nth(13)
+    curr_block = code_blocks.nth(17)
     curr_block.scroll_into_view_if_needed()
     expect(curr_block.get_by_text("EOL")).to_be_in_viewport()
 
-    curr_block = code_blocks.nth(14)
+    curr_block = code_blocks.nth(18)
     curr_block.scroll_into_view_if_needed()
     expect(curr_block.get_by_text("EOL")).to_be_in_viewport()
