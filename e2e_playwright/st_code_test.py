@@ -23,6 +23,14 @@ from e2e_playwright.shared.app_utils import check_top_level_class
 
 def test_code_display(app: Page):
     """Test that st.code displays a code block."""
+    # The code blocks might require a bit more time for rendering, so wait until
+    # the text is truly visible. Otherwise we might get blank code blocks in the
+    # screenshots.
+    foo_func_count = 5
+    app.wait_for_function(
+        f"()=>document.body.textContent.split('def foo()').length === {foo_func_count}"
+    )
+
     code = textwrap.dedent(
         """
         def hello():
@@ -34,23 +42,22 @@ def test_code_display(app: Page):
     code_with_whitespace_pattern = re.escape(code_with_whitespace)
 
     code_blocks = app.get_by_test_id("stCode")
-    expect(code_blocks.nth(0)).to_contain_text(
-        re.compile(r"\A# This code is awesome!\Z")
-    )
-    expect(code_blocks.nth(1)).to_contain_text(re.compile(r"\A\Z"))
-    expect(code_blocks.nth(2)).to_contain_text(re.compile(rf"\A{code_pattern}\Z"))
-    expect(code_blocks.nth(5)).to_contain_text(re.compile(rf"\A{code_pattern}\Z"))
+    # `to_contain_text` does not support pattern /\A\Z/, use /^$/ instead.
+    expect(code_blocks.nth(0)).to_contain_text(re.compile(r"^# This code is awesome!$"))
+    expect(code_blocks.nth(1)).to_contain_text(re.compile(r"^$"))
+    expect(code_blocks.nth(2)).to_contain_text(re.compile(rf"^{code_pattern}$"))
+    expect(code_blocks.nth(5)).to_contain_text(re.compile(rf"^{code_pattern}\n$"))
     expect(code_blocks.nth(7)).to_contain_text(
-        re.compile(rf"\A{code_with_whitespace_pattern}\Z")
+        re.compile(rf"^{code_with_whitespace_pattern}$")
     )
     expect(code_blocks.nth(8)).to_contain_text(
-        re.compile(rf"\A{code_with_whitespace_pattern}\Z")
+        re.compile(rf"^{code_with_whitespace_pattern}\n$")
     )
     expect(code_blocks.nth(9)).to_contain_text(
-        re.compile(rf"\A\n{code_with_whitespace_pattern}\Z")
+        re.compile(rf"^\n{code_with_whitespace_pattern}\n$")
     )
     expect(code_blocks.nth(10)).to_contain_text(
-        re.compile(rf"\A\n{code_with_whitespace_pattern}\n\Z")
+        re.compile(rf"^\n{code_with_whitespace_pattern}\n\n$")
     )
 
 
